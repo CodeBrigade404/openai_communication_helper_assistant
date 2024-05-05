@@ -2,6 +2,10 @@
     "cSpell.words": [
         "dotenv",
         "jsonify",
-        "openai"
+        "openai",
+        "sqlalchemy"
+    ],
+    "python.analysis.extraPaths": [
+        "./app"
     ]
 }

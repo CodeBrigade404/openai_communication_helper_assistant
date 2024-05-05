@@ -1,10 +1,12 @@
 # app/routes.py
+import os
 from app import app
 from flask import request, jsonify
 from app.openai_client import client
 
-assistant_id = "asst_dVxwEioD2LZPmcXvHIsmaQ9a"
+assistant_id = os.getenv("ASSISTANT_ID")
 thread_id = "thread_ekFvL7J53LrD5F10e4i3Ryi4"
+
 
 @app.route('/ask', methods=['POST'])
 def ask():
