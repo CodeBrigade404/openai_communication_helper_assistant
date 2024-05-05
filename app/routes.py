@@ -1,55 +1,79 @@
-# app/routes.py
 import os
-from app import app
-from flask import request, jsonify
-from app.openai_client import client
-from app.mongodb_client import users_collection
 import hashlib
+from flask import request, jsonify
+from flask_jwt_extended import  create_access_token, jwt_required, get_jwt_identity
+from app import app
+from app.openai_client import client, assistant_id
+from app.mongodb_client import users_collection
 from dataclasses import asdict
 
-assistant_id = os.getenv("ASSISTANT_ID")
-thread_id = "thread_ekFvL7J53LrD5F10e4i3Ryi4"
-
-@ app.route('/register', methods=['POST'])
+# User registration
+@app.route('/register', methods=['POST'])
 def register():
     data = request.json
-    email = data.get('email')
+    username = data.get('username')
     password = data.get('password')
 
-    if email and password:
-        existing_user = users_collection.find_one({'email': email})
+    if username and password:
+        existing_user = users_collection.find_one({'username': username})
         if existing_user:
-            return jsonify({'error': 'User already exists'}), 400
+            return jsonify({'error': 'Username already exists'}), 400
         else:
             # Hash the password
             hashed_password = hashlib.sha256(password.encode()).hexdigest()
 
-            new_user = {'email': email, 'password': hashed_password}
+            new_user = {'username': username, 'password': hashed_password}
             users_collection.insert_one(new_user)
             return jsonify({'message': 'User registered successfully'}), 201
     else:
-        return jsonify({'error': 'Email and password are required'}), 400
+        return jsonify({'error': 'Username and password are required'}), 400
 
+# User login
 @app.route('/login', methods=['POST'])
 def login():
     data = request.json
-    email = data.get('email')
+    username = data.get('username')
     password = data.get('password')
 
-    if email and password:
-        user = users_collection.find_one({'email': email, 'password': password})
+    if username and password:
+        user = users_collection.find_one({'username': username})
         if user:
-            return jsonify({'message': 'Login successful'}), 200
+            # Check hashed password
+            hashed_password = hashlib.sha256(password.encode()).hexdigest()
+            if user['password'] == hashed_password:
+                # Generate JWT token
+                access_token = create_access_token(identity=username)
+                return jsonify(access_token=access_token), 200
+            else:
+                return jsonify({'error': 'Invalid password'}), 401
         else:
-            return jsonify({'error': 'Invalid email or password'}), 401
+            return jsonify({'error': 'User not found'}), 404
     else:
-        return jsonify({'error': 'Email and password are required'}), 400
+        return jsonify({'error': 'Username and password are required'}), 400
+
+
+# chat thread creating
+@app.route('/create_thread', methods=['POST'])
+@jwt_required() 
+def create_thread():
+    thread = client.beta.threads.create()
+    thread_id = thread.id
+    username = get_jwt_identity()  # Get the username from the JWT token
+
+    # Update the thread_ids array for the user
+    users_collection.update_one({'username': username}, {'$push': {'thread_ids': thread_id}})
     
+    return jsonify({'thread_id': thread_id})
 
-
+# chat 
 @app.route('/ask', methods=['POST'])
+@jwt_required()
 def ask():
     content = request.json.get('content')
+    thread_id = request.json.get('thread_id')
+
+    if not thread_id:
+        return jsonify({'error': 'thread_id is required'}), 400
 
     # Send message to OpenAI
     message = client.beta.threads.messages.create(
@@ -62,7 +86,7 @@ def ask():
     run = client.beta.threads.runs.create_and_poll(
         thread_id=thread_id,
         assistant_id=assistant_id,
-        instructions="Please address the user politely and friendly"
+        instructions="Please address the user politely and friendly give short answers 20 to 30 words"
     )
 
     if run.status == 'completed':
