@@ -3,6 +3,7 @@
         "dotenv",
         "jsonify",
         "openai",
+        "sensez",
         "sqlalchemy"
     ],
     "python.analysis.extraPaths": [
