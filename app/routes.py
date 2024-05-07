@@ -1,9 +1,10 @@
 import hashlib
+import time
 from flask import request, jsonify
 from flask_jwt_extended import  create_access_token, jwt_required, get_jwt_identity
 from app import app
-from app.openai_client import client, assistant_id
-from app.mongodb_client import users_collection
+from app.openai_client import client, assistant_id ,conversation_builder
+from app.mongodb_client import users_collection 
 from app.functions import generate_user_paragraph
 from dataclasses import asdict
 from json import JSONDecodeError
@@ -103,51 +104,79 @@ def save_user():
 
     return jsonify({'message': 'User details saved successfully'}), 201
 
+
 # chat thread creating
 @app.route('/create_thread', methods=['POST'])
 @jwt_required() 
 def create_thread():
+    # Create the thread
     thread = client.beta.threads.create()
     thread_id = thread.id
-    username = get_jwt_identity()  # Get the username from the JWT token
+    username = get_jwt_identity()  
 
     # Update the thread_ids array for the user
     users_collection.update_one({'username': username}, {'$push': {'thread_ids': thread_id}})
-    
+
     return jsonify({'thread_id': thread_id})
 
-# chat 
+
 @app.route('/ask', methods=['POST'])
 @jwt_required()
 def ask():
-    content = request.json.get('content')
-    thread_id = request.json.get('thread_id')
+    try:
+        content = request.json.get('content')
+        thread_id = request.json.get('thread_id')
 
-    if not thread_id:
-        return jsonify({'error': 'thread_id is required'}), 400
+        if not thread_id:
+            return jsonify({'error': 'thread_id is required'}), 400
 
-    # Send message to OpenAI
-    message = client.beta.threads.messages.create(
-        thread_id=thread_id,
-        role="user",
-        content=content
-    )
+        # Call interact_with_user function to get the array of messages
+        messages_array = conversation_builder(thread_id, client, assistant_id, content)
 
- # Create and poll the run
-    run = client.beta.threads.runs.create(
-        thread_id=thread_id,
-        assistant_id=assistant_id,
-        instructions="Please address the user politely and friendly give short answers 20 to 30 words"
-    )
+        # Return the array of messages as JSON response
+        return jsonify(messages_array)
 
-    retrieve_run = client.beta.threads.runs.retrieve(
-        thread_id=thread_id,
-        run_id=run.id
-    )
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+
+
+
+
+
+# chat 
+# @app.route('/ask', methods=['POST'])
+# @jwt_required()
+# def ask():
+#     content = request.json.get('content')
+#     thread_id = request.json.get('thread_id')
+
+#     if not thread_id:
+#         return jsonify({'error': 'thread_id is required'}), 400
+
+#     # Send message to OpenAI
+#     message = client.beta.threads.messages.create(
+#         thread_id=thread_id,
+#         role="user",
+#         content=content
+#     )
+
+#  # Create and poll the run
+#     run = client.beta.threads.runs.create(
+#         thread_id=thread_id,
+#         assistant_id=assistant_id,
+#         instructions="Please address the user politely and friendly give short answers 20 to 30 words"
+#     )
+
+#     retrieve_run = client.beta.threads.runs.retrieve(
+#         thread_id=thread_id,
+#         run_id=run.id
+#     )
     
-    print(retrieve_run.model_dump_json(indent=2))
+#     print(retrieve_run.model_dump_json(indent=2))
     
-    return jsonify({'messages': "run"})
+#     return jsonify({'messages': "run"})
     # Create and poll the run
     # run = client.beta.threads.runs.create_and_poll(
     #     thread_id=thread_id,

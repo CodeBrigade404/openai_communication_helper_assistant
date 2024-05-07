@@ -21,3 +21,5 @@ def get_user_info(username):
             # Return function_call_string if it exists, or an empty string otherwise
             return user_info.get('function_call_string', '')
     return ''  # Return an empty string if user or user_info doesn't exist
+
+print(get_user_info("MK"))
