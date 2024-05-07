@@ -13,7 +13,7 @@ client = openai.OpenAI(api_key=api_key)
 
 assistant_id = os.getenv("ASSISTANT_ID")
 
-def conversation_builder(thread_id, client, assistant_id , content):
+def conversation_builder(thread_id, client, assistant_id , content ,username):
     messages_list = []  # List to store messages
 
     # Send message to initiate conversation
@@ -68,7 +68,7 @@ def conversation_builder(thread_id, client, assistant_id , content):
             for action in required_actions["tool_calls"]:
                 func_name = action["function"]["name"]
                 if func_name == "get_my_info":
-                    output = get_user_info("MK")  
+                    output = get_user_info(username)  
                     tools_output.append(
                         {
                             "tool_call_id": action["id"],
@@ -85,7 +85,7 @@ def conversation_builder(thread_id, client, assistant_id , content):
             )
 
         else:
-            print("Waiting ")
+            print("Waiting for function calling...")
 
     return messages_list  # Return the list of messages
 

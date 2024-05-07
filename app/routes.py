@@ -30,6 +30,8 @@ def register():
     else:
         return jsonify({'error': 'Username and password are required'}), 400
 
+
+
 # User login
 @app.route('/sign_in', methods=['POST'])
 def login():
@@ -52,6 +54,8 @@ def login():
             return jsonify({'error': 'User not found'}), 404
     else:
         return jsonify({'error': 'Username and password are required'}), 400
+
+
 
 # save user object
 @app.route('/save_user', methods=['POST'])
@@ -105,6 +109,8 @@ def save_user():
     return jsonify({'message': 'User details saved successfully'}), 201
 
 
+
+
 # chat thread creating
 @app.route('/create_thread', methods=['POST'])
 @jwt_required() 
@@ -120,6 +126,8 @@ def create_thread():
     return jsonify({'thread_id': thread_id})
 
 
+
+
 @app.route('/ask', methods=['POST'])
 @jwt_required()
 def ask():
@@ -129,9 +137,11 @@ def ask():
 
         if not thread_id:
             return jsonify({'error': 'thread_id is required'}), 400
+        
+        username = get_jwt_identity()  
 
         # Call interact_with_user function to get the array of messages
-        messages_array = conversation_builder(thread_id, client, assistant_id, content)
+        messages_array = conversation_builder(thread_id, client, assistant_id, content , username)
 
         # Return the array of messages as JSON response
         return jsonify(messages_array)
@@ -139,77 +149,3 @@ def ask():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-
-
-
-
-
-
-# chat 
-# @app.route('/ask', methods=['POST'])
-# @jwt_required()
-# def ask():
-#     content = request.json.get('content')
-#     thread_id = request.json.get('thread_id')
-
-#     if not thread_id:
-#         return jsonify({'error': 'thread_id is required'}), 400
-
-#     # Send message to OpenAI
-#     message = client.beta.threads.messages.create(
-#         thread_id=thread_id,
-#         role="user",
-#         content=content
-#     )
-
-#  # Create and poll the run
-#     run = client.beta.threads.runs.create(
-#         thread_id=thread_id,
-#         assistant_id=assistant_id,
-#         instructions="Please address the user politely and friendly give short answers 20 to 30 words"
-#     )
-
-#     retrieve_run = client.beta.threads.runs.retrieve(
-#         thread_id=thread_id,
-#         run_id=run.id
-#     )
-    
-#     print(retrieve_run.model_dump_json(indent=2))
-    
-#     return jsonify({'messages': "run"})
-    # Create and poll the run
-    # run = client.beta.threads.runs.create_and_poll(
-    #     thread_id=thread_id,
-    #     assistant_id=assistant_id,
-    #     instructions="Please address the user politely and friendly give short answers 20 to 30 words"
-    # )
-
-    # if run.status == 'completed':
-    #     # Get messages from OpenAI
-    #     messages = client.beta.threads.messages.list(
-    #         thread_id=thread_id
-    #     )
-
-    #     response_messages = []
-    #     for msg in messages.data:
-    #         message_dict = {
-    #             'id': msg.id,
-    #             'assistant_id': msg.assistant_id,
-    #             'attachments': msg.attachments,
-    #             'completed_at': msg.completed_at,
-    #             'content': [content_block.to_dict() for content_block in msg.content],
-    #             'created_at': msg.created_at,
-    #             'incomplete_at': msg.incomplete_at,
-    #             'incomplete_details': msg.incomplete_details,
-    #             'metadata': msg.metadata,
-    #             'object': msg.object,
-    #             'role': msg.role,
-    #             'run_id': msg.run_id,
-    #             'status': msg.status,
-    #             'thread_id': msg.thread_id
-    #         }
-    #         response_messages.append(message_dict)
-
-    # return jsonify({'messages': run})
-    # else:
-    #     return jsonify({'error': 'Run not completed'}), 500
