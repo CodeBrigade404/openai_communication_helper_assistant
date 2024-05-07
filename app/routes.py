@@ -1,14 +1,15 @@
-import os
 import hashlib
 from flask import request, jsonify
 from flask_jwt_extended import  create_access_token, jwt_required, get_jwt_identity
 from app import app
 from app.openai_client import client, assistant_id
 from app.mongodb_client import users_collection
+from app.functions import generate_user_paragraph
 from dataclasses import asdict
+from json import JSONDecodeError
 
 # User registration
-@app.route('/register', methods=['POST'])
+@app.route('/sign_up', methods=['POST'])
 def register():
     data = request.json
     username = data.get('username')
@@ -29,7 +30,7 @@ def register():
         return jsonify({'error': 'Username and password are required'}), 400
 
 # User login
-@app.route('/login', methods=['POST'])
+@app.route('/sign_in', methods=['POST'])
 def login():
     data = request.json
     username = data.get('username')
@@ -51,6 +52,56 @@ def login():
     else:
         return jsonify({'error': 'Username and password are required'}), 400
 
+# save user object
+@app.route('/save_user', methods=['POST'])
+@jwt_required()
+def save_user():
+    try:
+        data = request.json
+    except JSONDecodeError as e:
+        return jsonify({'error': 'Failed to decode JSON object: ' + str(e)}), 400
+
+    # Retrieve username from JWT identity
+    username = get_jwt_identity() 
+    if not username:
+        return jsonify({'error': 'Failed to retrieve user identity from JWT'}), 400
+    
+    # Check if all required fields are present
+    required_fields = ['f_name', 'l_name', 'gender', 'address', 'birth_date', 'about_me']
+    for field in required_fields:
+        if field not in data:
+            return jsonify({'error': f'Missing required field: {field}'}), 400
+    
+    # Check if gender is one of the specified types
+    valid_genders = ['Male', 'Female', 'Other']
+    if data['gender'] not in valid_genders:
+        return jsonify({'error': 'Invalid gender type'}), 400
+    
+    # Process other_names if present
+    other_names = data.get('other_names', [])
+
+    # Save or process the user information
+    user_info = {
+        'f_name': data['f_name'],
+        'l_name': data['l_name'],
+        'other_names': other_names,
+        'gender': data['gender'],
+        'address': data['address'],
+        'birth_date': data['birth_date'],
+        'about_me': data['about_me']
+    }
+
+    # If function_call_string is not in the user_info object, add it
+    if 'function_call_string' not in user_info:
+        user_info['function_call_string'] = generate_user_paragraph(user_info)
+    
+    # Update user details in the user collection
+    try:
+        users_collection.update_one({'username': username}, {'$set': {'user_info': user_info}}, upsert=True)
+    except Exception as e:
+        return jsonify({'error': 'Failed to save user details: ' + str(e)}), 500
+
+    return jsonify({'message': 'User details saved successfully'}), 201
 
 # chat thread creating
 @app.route('/create_thread', methods=['POST'])
@@ -82,39 +133,54 @@ def ask():
         content=content
     )
 
-    # Create and poll the run
-    run = client.beta.threads.runs.create_and_poll(
+ # Create and poll the run
+    run = client.beta.threads.runs.create(
         thread_id=thread_id,
         assistant_id=assistant_id,
         instructions="Please address the user politely and friendly give short answers 20 to 30 words"
     )
 
-    if run.status == 'completed':
-        # Get messages from OpenAI
-        messages = client.beta.threads.messages.list(
-            thread_id=thread_id
-        )
+    retrieve_run = client.beta.threads.runs.retrieve(
+        thread_id=thread_id,
+        run_id=run.id
+    )
+    
+    print(retrieve_run.model_dump_json(indent=2))
+    
+    return jsonify({'messages': "run"})
+    # Create and poll the run
+    # run = client.beta.threads.runs.create_and_poll(
+    #     thread_id=thread_id,
+    #     assistant_id=assistant_id,
+    #     instructions="Please address the user politely and friendly give short answers 20 to 30 words"
+    # )
 
-        response_messages = []
-        for msg in messages.data:
-            message_dict = {
-                'id': msg.id,
-                'assistant_id': msg.assistant_id,
-                'attachments': msg.attachments,
-                'completed_at': msg.completed_at,
-                'content': [content_block.to_dict() for content_block in msg.content],
-                'created_at': msg.created_at,
-                'incomplete_at': msg.incomplete_at,
-                'incomplete_details': msg.incomplete_details,
-                'metadata': msg.metadata,
-                'object': msg.object,
-                'role': msg.role,
-                'run_id': msg.run_id,
-                'status': msg.status,
-                'thread_id': msg.thread_id
-            }
-            response_messages.append(message_dict)
+    # if run.status == 'completed':
+    #     # Get messages from OpenAI
+    #     messages = client.beta.threads.messages.list(
+    #         thread_id=thread_id
+    #     )
 
-        return jsonify({'messages': response_messages})
-    else:
-        return jsonify({'error': 'Run not completed'}), 500
+    #     response_messages = []
+    #     for msg in messages.data:
+    #         message_dict = {
+    #             'id': msg.id,
+    #             'assistant_id': msg.assistant_id,
+    #             'attachments': msg.attachments,
+    #             'completed_at': msg.completed_at,
+    #             'content': [content_block.to_dict() for content_block in msg.content],
+    #             'created_at': msg.created_at,
+    #             'incomplete_at': msg.incomplete_at,
+    #             'incomplete_details': msg.incomplete_details,
+    #             'metadata': msg.metadata,
+    #             'object': msg.object,
+    #             'role': msg.role,
+    #             'run_id': msg.run_id,
+    #             'status': msg.status,
+    #             'thread_id': msg.thread_id
+    #         }
+    #         response_messages.append(message_dict)
+
+    # return jsonify({'messages': run})
+    # else:
+    #     return jsonify({'error': 'Run not completed'}), 500
