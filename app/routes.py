@@ -9,27 +9,52 @@ from app.functions import generate_user_paragraph
 from dataclasses import asdict
 from json import JSONDecodeError
 
+
 # User registration
 @app.route('/sign_up', methods=['POST'])
 def register():
     data = request.json
     username = data.get('username')
     password = data.get('password')
+    names = data.get('names', {})
+    f_name = names.get('f_name')
+    l_name = names.get('l_name')
+    surname = names.get('surname')
+    nick_name = names.get('nick_name')
 
-    if username and password:
-        existing_user = users_collection.find_one({'username': username})
-        if existing_user:
-            return jsonify({'error': 'Username already exists'}), 400
-        else:
-            # Hash the password
-            hashed_password = hashlib.sha256(password.encode()).hexdigest()
+    missing_fields = []
+    if not username:
+        missing_fields.append('username')
+    if not password:
+        missing_fields.append('password')
+    if not f_name:
+        missing_fields.append('first name')
+    if not l_name:
+        missing_fields.append('last name')
 
-            new_user = {'username': username, 'password': hashed_password}
-            users_collection.insert_one(new_user)
-            return jsonify({'message': 'User registered successfully'}), 201
-    else:
-        return jsonify({'error': 'Username and password are required'}), 400
+    if missing_fields:
+        error_message = f"The following fields are required: {', '.join(missing_fields)}"
+        return jsonify({'error': error_message}), 400
 
+    existing_user = users_collection.find_one({'username': username})
+    if existing_user:
+        return jsonify({'error': 'Username already exists'}), 400
+
+    # Hash the password
+    hashed_password = hashlib.sha256(password.encode()).hexdigest()
+
+    new_user = {
+        'username': username,
+        'password': hashed_password,
+        'names': {
+            'f_name': f_name,
+            'l_name': l_name,
+            'surname': surname,
+            'nick_name': nick_name
+        }
+    }
+    users_collection.insert_one(new_user)
+    return jsonify({'message': 'User registered successfully'}), 201
 
 
 # User login

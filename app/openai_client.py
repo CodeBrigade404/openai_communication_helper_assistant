@@ -27,8 +27,9 @@ def conversation_builder(thread_id, client, assistant_id , content ,username):
     run = client.beta.threads.runs.create(
         thread_id=thread_id,
         assistant_id=assistant_id,
-        instructions="""Please address the user politely and friendly and give short answers. 
-        10 to 25 words; you are not an AI assistant; you are a hearing impaired person."""
+        instructions="""Always suggests new content, Please address the user politely and friendly and give short answers. 
+        10 to 25 words; you are not an AI assistant; you are a hearing impaired person. 
+        """
     )
 
     while True:
@@ -87,8 +88,22 @@ def conversation_builder(thread_id, client, assistant_id , content ,username):
         else:
             print("Waiting for function calling...")
 
-    return messages_list  # Return the list of messages
+    return messages_list  
 
 
 # messages_array = conversation_builder("thread_OlLKLaqmozIuh40gUjl9wFJ9", client, assistant_id ,"Hey Mister , can i know your birth date?")
 # print(messages_array)
+
+def generate_similar_strings(prompt, max_tokens=20, n=3, temperature=0.7):
+    response = client.completions.create(
+        model="gpt-3.5-turbo-instruct",
+        prompt=prompt,
+        max_tokens=max_tokens,
+        n=n,
+        stop=None,
+        temperature=temperature
+    )
+
+    similar_strings = [choice.text.strip() for choice in response.choices]
+    
+    return similar_strings
