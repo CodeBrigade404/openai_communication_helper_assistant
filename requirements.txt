@@ -3,4 +3,7 @@ openai
 flask
 flask_jwt_extended
 pymongo[srv]
+langchain
+langchain_openai
+langchain-community
 

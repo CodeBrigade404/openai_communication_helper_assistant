@@ -21,4 +21,4 @@ This document provides instructions for setting up and running this Flask applic
 - `pip install -r requirements.txt`
 
 ## Run the Application
-- `python run.py`
+- `python main.py`
