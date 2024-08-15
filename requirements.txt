@@ -4,6 +4,12 @@ flask
 flask_jwt_extended
 pymongo[srv]
 langchain
-langchain_openai
-langchain-community
+langchain_community
+langchain_text_splitters
+pypdf
+chromadb
+langchainhub
+langchain-chroma
+bs4
+
 
