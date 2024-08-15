@@ -1,15 +1,14 @@
 python-dotenv
 langchain
+langchain_openai
 langchain_community
 langchain_core
 langchain_text_splitters
-langserve
 fastapi
 uvicorn
-sse_starlette
 pymongo
-fastapi-jwt-auth
 pydantic
+pyjwt
 
 
 

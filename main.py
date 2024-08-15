@@ -10,6 +10,7 @@ app = FastAPI(
     description="A chatbot with memory using LangChain and FastAPI"
 )
 
+
 # Include routers from the api module
 app.include_router(auth_router, prefix="/api/v1", tags=["auth"])
 app.include_router(chat_router, prefix="/api/v1", tags=["chat"])

@@ -1,41 +1,48 @@
-from server.utils.mongodb_client import db
 import hashlib
-from fastapi_jwt_auth import AuthJWT
-from server.models.user import User, UserLogin
+import jwt
+from server.utils.mongodb_client import db
+from server.models.user import User , UserLogin
+from fastapi import HTTPException, status
+from fastapi.responses import JSONResponse
+from datetime import datetime ,timedelta
+
+
 
 async def register_user(user: User):
     # Check for missing fields
     if not all([user.username, user.password, user.names.get('f_name'), user.names.get('l_name'), user.birth_date, user.address, user.mobile_number, user.about_me]):
-        return {"error": "Please provide all required fields"}, 400
+        return JSONResponse(content={"message": "Please provide all required fields"}, status_code=400)
 
     # Check for existing user
     existing_user = db.users.find_one({'username': user.username})
     if existing_user:
-        return {"error": "Username already taken"}, 400
+        return JSONResponse(content={"message": "Username already taken"}, status_code=400)
 
     # Hash the password
     hashed_password = hashlib.sha256(user.password.encode()).hexdigest()
 
     # Create new user
-    new_user = user.dict()
+    new_user = user.model_dump()
     new_user['password'] = hashed_password
     db.users.insert_one(new_user)
-    return {"message": "Registration successful!"}, 201
+    return JSONResponse(content={"message": "Registration successful!"}, status_code=201)
 
-async def authenticate_user(user: UserLogin):
+
+def authenticate_user(user: UserLogin):
     # Check for missing fields
     if not user.username or not user.password:
-        return {"error": "Username and password are required"}, 400
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username and password are required")
 
     # Verify user credentials
     user_doc = db.users.find_one({'username': user.username})
     if not user_doc:
-        return {"error": "User not found"}, 404
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
     hashed_password = hashlib.sha256(user.password.encode()).hexdigest()
     if user_doc['password'] != hashed_password:
-        return {"error": "Invalid password"}, 401
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid password")
 
-    # Generate JWT token
-    access_token = AuthJWT.create_access_token(identity=user.username)
-    return {"access_token": access_token}, 200
+    # Create access token
+    encoded_jwt = jwt.encode({"id": user.username, "exp": datetime.now() + timedelta(minutes=15)}, "secret", algorithm="HS256")
+
+    return {"access_token": encoded_jwt}

@@ -1,6 +1,7 @@
 {
   "cSpell.words": [
     "dotenv",
+    "fastapi",
     "jsonify",
     "langchain",
     "openai",
