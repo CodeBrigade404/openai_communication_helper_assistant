@@ -6,6 +6,7 @@
     "openai",
     "sensez",
     "sqlalchemy",
+    "uvicorn",
     "vectorstores"
   ],
   "python.analysis.extraPaths": ["./app"]

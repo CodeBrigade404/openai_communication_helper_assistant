@@ -1,15 +1,15 @@
 python-dotenv
-openai
-flask
-flask_jwt_extended
-pymongo[srv]
 langchain
 langchain_community
+langchain_core
 langchain_text_splitters
-pypdf
-chromadb
-langchainhub
-langchain-chroma
-bs4
+langserve
+fastapi
+uvicorn
+sse_starlette
+pymongo
+fastapi-jwt-auth
+pydantic
+
 
 
