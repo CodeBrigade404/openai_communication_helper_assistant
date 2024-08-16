@@ -14,7 +14,7 @@ async def register_user(user: User):
         return JSONResponse(content={"message": "Please provide all required fields"}, status_code=400)
 
     # Check for existing user
-    existing_user = db.users.find_one({'username': user.username})
+    existing_user = db.senceez_user_collection.find_one({'username': user.username})
     if existing_user:
         return JSONResponse(content={"message": "Username already taken"}, status_code=400)
 
@@ -24,25 +24,28 @@ async def register_user(user: User):
     # Create new user
     new_user = user.model_dump()
     new_user['password'] = hashed_password
-    db.users.insert_one(new_user)
+    db.senceez_user_collection.insert_one(new_user)
     return JSONResponse(content={"message": "Registration successful!"}, status_code=201)
 
 
 def authenticate_user(user: UserLogin):
     # Check for missing fields
     if not user.username or not user.password:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username and password are required")
+        error_message = "Username and password are required"
+        return JSONResponse(content={"error": error_message}, status_code=status.HTTP_400_BAD_REQUEST)
 
     # Verify user credentials
-    user_doc = db.users.find_one({'username': user.username})
+    user_doc = db.senceez_user_collection.find_one({'username': user.username})
     if not user_doc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        error_message = "User not found"
+        return JSONResponse(content={"error": error_message}, status_code=status.HTTP_404_NOT_FOUND)
 
     hashed_password = hashlib.sha256(user.password.encode()).hexdigest()
     if user_doc['password'] != hashed_password:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid password")
+        error_message = "Invalid password"
+        return JSONResponse(content={"error": error_message}, status_code=status.HTTP_401_UNAUTHORIZED)
 
     # Create access token
     encoded_jwt = jwt.encode({"id": user.username, "exp": datetime.now() + timedelta(minutes=15)}, "secret", algorithm="HS256")
 
-    return {"access_token": encoded_jwt}
+    return JSONResponse(content={"access_token": encoded_jwt}, status_code=status.HTTP_200_OK)
