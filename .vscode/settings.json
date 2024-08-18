@@ -5,6 +5,7 @@
     "jsonify",
     "langchain",
     "openai",
+    "senceez",
     "sensez",
     "sqlalchemy",
     "uvicorn",

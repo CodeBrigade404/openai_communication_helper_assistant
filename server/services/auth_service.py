@@ -1,12 +1,16 @@
 import hashlib
 import jwt
+import os
 from server.utils.mongodb_client import db
 from server.models.user import User , UserLogin
-from fastapi import HTTPException, status
+from fastapi import  status
 from fastapi.responses import JSONResponse
 from datetime import datetime ,timedelta
+from dotenv import load_dotenv
 
+load_dotenv()
 
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 
 async def register_user(user: User):
     # Check for missing fields
@@ -24,6 +28,7 @@ async def register_user(user: User):
     # Create new user
     new_user = user.model_dump()
     new_user['password'] = hashed_password
+
     db.senceez_user_collection.insert_one(new_user)
     return JSONResponse(content={"message": "Registration successful!"}, status_code=201)
 
@@ -46,6 +51,6 @@ def authenticate_user(user: UserLogin):
         return JSONResponse(content={"error": error_message}, status_code=status.HTTP_401_UNAUTHORIZED)
 
     # Create access token
-    encoded_jwt = jwt.encode({"id": user.username, "exp": datetime.now() + timedelta(minutes=15)}, "secret", algorithm="HS256")
+    encoded_jwt = jwt.encode({"username": user.username, "exp": datetime.now() + timedelta(minutes=15)}, JWT_SECRET_KEY, algorithm="HS256")
 
     return JSONResponse(content={"access_token": encoded_jwt}, status_code=status.HTTP_200_OK)

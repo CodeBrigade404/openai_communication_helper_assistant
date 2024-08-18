@@ -1,15 +1,19 @@
 python-dotenv
 openai
+fastapi
+uvicorn
 langchain
 langchain_openai
 langchain_community
 langchain_core
 langchain_text_splitters
-fastapi
-uvicorn
+langchain-chroma
+langchainhub
+langchain-chroma
 pymongo
 pydantic
 pyjwt
-
+motor
+bs4
 
 
