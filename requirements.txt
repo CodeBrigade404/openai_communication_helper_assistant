@@ -4,6 +4,7 @@ fastapi
 uvicorn
 langchain
 langchain_openai
+langchain-mongodb
 langchain_community
 langchain_core
 langchain_text_splitters
@@ -15,5 +16,5 @@ pydantic
 pyjwt
 motor
 bs4
-
+jq
 

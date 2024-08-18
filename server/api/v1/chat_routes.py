@@ -8,8 +8,7 @@ router = APIRouter()
 @router.post("/chat")
 async def chat(request: ChatRequest, token_data: dict = Depends(jwt_required)):
     try:
-        print(token_data)
-        response = await handle_chat(request.session_id, request.user_message)
+        response = await handle_chat(request,token_data)
         return {"response": response}
     except Exception as e:
         HTTPException(

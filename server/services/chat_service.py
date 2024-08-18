@@ -1,37 +1,104 @@
-from langchain_openai import ChatOpenAI
-from langchain_core.messages import HumanMessage
-from langchain_core.chat_history import InMemoryChatMessageHistory
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain.chains import create_history_aware_retriever, create_retrieval_chain
+from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_community.document_loaders.mongodb import MongodbLoader
+from langchain_mongodb.chat_message_histories import MongoDBChatMessageHistory
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_chroma import Chroma
+from server.models.chat import ChatRequest
+from server.utils.mongodb_client import connection_string, db
 from server.utils.logger import logger
 
-# Initialize the model
-model = ChatOpenAI(model="gpt-3.5-turbo")
+# Initialize the llm
+llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0)
 
-# Define the prompt template
-prompt = ChatPromptTemplate.from_messages(
+# Initialize text splitter
+text_splitter = RecursiveCharacterTextSplitter(chunk_size = 1000, chunk_overlap = 50)
+
+# Contextualize question
+contextualize_q_system_prompt = (
+    "Given a chat history and the latest user question "
+    "which might reference context in the chat history, "
+    "formulate a standalone question which can be understood "
+    "without the chat history. Do NOT answer the question, "
+    "just reformulate it if needed and otherwise return it as is."
+)
+
+contextualize_q_prompt = ChatPromptTemplate.from_messages(
     [
-        ("system", "You are a helpful assistant. Answer all questions to the best of your ability."),
-        MessagesPlaceholder(variable_name="messages"),
+        ("system", contextualize_q_system_prompt),
+        MessagesPlaceholder("chat_history"),
+        ("human", "{input}"),
     ]
 )
 
-store = {}
 
-def get_session_history(session_id: str) -> InMemoryChatMessageHistory:
-    if session_id not in store:
-        store[session_id] = InMemoryChatMessageHistory()
-    return store[session_id]
+# Answer question 
+system_prompt = (
+    "You are an hearing-impaired person"
+    "Your personal details are provided"
+    "Use only the following pieces of retrieved context to answer the question. "
+    "If you don't know the answer based on the context, say 'The information is not available in the details provided.' "
+    "Do not use any outside knowledge or make assumptions. "
+    "Use three sentences maximum and keep the answer concise."
+    "\n\n"
+    "{context}"
+)
 
-with_message_history = RunnableWithMessageHistory(prompt | model, get_session_history, input_messages_key="messages")
+qa_prompt = ChatPromptTemplate.from_messages(
+    [
+        ("system", system_prompt),
+        MessagesPlaceholder("chat_history"),
+        ("human", "{input}"),
+    ]
+)
+question_answer_chain = create_stuff_documents_chain(llm, qa_prompt)
 
-async def handle_chat(session_id: str, user_message: str) -> str:
+
+async def handle_chat(request: ChatRequest ,token_data: dict ) -> str:
     try:
-        response = with_message_history.invoke(
-            {"messages": [HumanMessage(content=user_message)]},
-            config={"configurable": {"session_id": session_id}},
+       
+        loader =MongodbLoader(
+            connection_string=connection_string,
+            db_name="sensez",
+            collection_name="senceez_user_collection",
+            filter_criteria={"username": token_data["username"]},
         )
-        return response.content
+        
+        docss = [doc async for doc in loader.alazy_load()]
+    
+        splits = text_splitter.split_documents(docss)
+
+        vectorstore = Chroma.from_documents(documents=splits, embedding=OpenAIEmbeddings())
+        retriever = vectorstore.as_retriever()
+
+        history_aware_retriever = create_history_aware_retriever(
+        llm, retriever, contextualize_q_prompt
+        )
+
+        rag_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)
+
+        conversational_rag_chain = RunnableWithMessageHistory(
+            rag_chain,
+            lambda session_id: MongoDBChatMessageHistory(
+                session_id=session_id,
+                connection_string=connection_string,
+                database_name="sensez",
+                collection_name="runtime_chat_memory_collection",
+            ),
+            input_messages_key="input",
+            history_messages_key="chat_history",
+            output_messages_key="answer",
+        )
+
+        response = conversational_rag_chain.invoke(
+            {"input": request.user_message},
+            config={"configurable": {"session_id": request.session_id}},
+        )
+  
+        return response
     except Exception as e:
         logger.error(f"Error in handle_chat: {e}")
         raise e
