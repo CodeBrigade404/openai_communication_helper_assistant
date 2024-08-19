@@ -10,11 +10,14 @@ app = FastAPI(
     description="A chatbot with memory using LangChain and FastAPI"
 )
 
+@app.get("/")
+async def health_check():
+    return "Health check is successful"
 
 # Include routers from the api module
 app.include_router(auth_router, prefix="/api/v1", tags=["auth"])
 app.include_router(chat_router, prefix="/api/v1", tags=["chat"])
 
 
-if __name__ == "__main__":
-    uvicorn.run(app, host="localhost", port=8000)
+# if __name__ == "__main__":
+#     uvicorn.run(app, host="localhost", port=8000)

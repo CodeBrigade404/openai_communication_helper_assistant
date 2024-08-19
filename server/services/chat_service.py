@@ -67,12 +67,12 @@ async def handle_chat(request: ChatRequest ,token_data: dict ) -> str:
             filter_criteria={"username": token_data["username"]},
         )
         
-        docss = [doc async for doc in loader.alazy_load()]
+        user_docs = [doc async for doc in loader.alazy_load()]
     
-        splits = text_splitter.split_documents(docss)
+        splits = text_splitter.split_documents(user_docs)
 
-        vectorstore = Chroma.from_documents(documents=splits, embedding=OpenAIEmbeddings())
-        retriever = vectorstore.as_retriever()
+        vector_store = Chroma.from_documents(documents=splits, embedding=OpenAIEmbeddings())
+        retriever = vector_store.as_retriever()
 
         history_aware_retriever = create_history_aware_retriever(
         llm, retriever, contextualize_q_prompt
