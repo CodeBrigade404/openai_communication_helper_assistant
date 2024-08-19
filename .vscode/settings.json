@@ -1,12 +1,16 @@
 {
-    "cSpell.words": [
-        "dotenv",
-        "jsonify",
-        "openai",
-        "sensez",
-        "sqlalchemy"
-    ],
-    "python.analysis.extraPaths": [
-        "./app"
-    ]
+  "cSpell.words": [
+    "alazy",
+    "dotenv",
+    "fastapi",
+    "jsonify",
+    "langchain",
+    "openai",
+    "senceez",
+    "sensez",
+    "sqlalchemy",
+    "uvicorn",
+    "vectorstores"
+  ],
+  "python.analysis.extraPaths": ["./app"]
 }
