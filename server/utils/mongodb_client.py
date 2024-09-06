@@ -17,3 +17,15 @@ connection_string = f"mongodb+srv://badmkavinda:{password}@sensezcluster.esoo75g
 
 client = MongoClient(connection_string)
 db = client.sensez
+
+def get_user_details(username):
+    try:
+        user_details = db.senceez_user_collection.find_one({"username": username})
+        if user_details:
+            # Convert ObjectId to string
+            user_details['_id'] = str(user_details['_id'])
+            return user_details
+        else:
+            return {"error": "User not found"}
+    except PyMongoError as e:
+        return {"error": str(e)}
