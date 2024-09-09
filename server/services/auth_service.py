@@ -2,6 +2,7 @@ import hashlib
 import jwt
 import os
 from server.utils.mongodb_client import db
+from server.utils.calculate_age import calculate_age
 from server.models.user import User , UserLogin
 from fastapi import  status
 from fastapi.responses import JSONResponse
@@ -22,12 +23,14 @@ async def register_user(user: User):
     if existing_user:
         return JSONResponse(content={"message": "Username already taken"}, status_code=400)
 
+
     # Hash the password
     hashed_password = hashlib.sha256(user.password.encode()).hexdigest()
 
     # Create new user
     new_user = user.model_dump()
     new_user['password'] = hashed_password
+    new_user['age'] = calculate_age(user.birth_date) 
 
     db.senceez_user_collection.insert_one(new_user)
     return JSONResponse(content={"message": "Registration successful!"}, status_code=201)

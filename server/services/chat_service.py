@@ -93,12 +93,20 @@ async def handle_chat(request: ChatRequest ,token_data: dict ) -> str:
             output_messages_key="answer",
         )
 
-        response = conversational_rag_chain.invoke(
+        ai_response = conversational_rag_chain.invoke(
             {"input": request.user_message},
             config={"configurable": {"session_id": request.session_id}},
         )
+        print(ai_response["input"]);
+
+        formatted_response = {
+            "input": ai_response["input"],
+            "answer": ai_response["answer"],
+            "chat_history": ai_response["chat_history"]
+        }
   
-        return response
+        return formatted_response
+    
     except Exception as e:
         logger.error(f"Error in handle_chat: {e}")
         raise e
