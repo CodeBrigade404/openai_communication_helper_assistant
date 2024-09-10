@@ -54,6 +54,6 @@ def authenticate_user(user: UserLogin):
         return JSONResponse(content={"error": error_message}, status_code=status.HTTP_401_UNAUTHORIZED)
 
     # Create access token
-    encoded_jwt = jwt.encode({"username": user.username, "exp": datetime.now() + timedelta(minutes=15)}, JWT_SECRET_KEY, algorithm="HS256")
+    encoded_jwt = jwt.encode({"username": user.username, "exp": datetime.now() + timedelta(minutes=60)}, JWT_SECRET_KEY, algorithm="HS256")
 
     return JSONResponse(content={"access_token": encoded_jwt}, status_code=status.HTTP_200_OK)
