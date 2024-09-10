@@ -1,3 +1,4 @@
+import json
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain.chains import create_history_aware_retriever, create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
@@ -22,7 +23,7 @@ contextualize_q_system_prompt = (
     "Given a chat history and the latest user question "
     "which might reference context in the chat history, "
     "formulate a standalone question which can be understood "
-    "without the chat history. Do NOT answer the question, "
+    "without the chat history. Do NOT answer the question,"
     "just reformulate it if needed and otherwise return it as is."
 )
 
@@ -36,16 +37,45 @@ contextualize_q_prompt = ChatPromptTemplate.from_messages(
 
 
 # Answer question 
+# system_prompt = (
+#     "You are an hearing-impaired person"
+#     "Your personal details are provided"
+#     "Use only the following pieces of retrieved context to answer the question. "
+#     "If you don't know the answer based on the context, say 'The information is not available in the details provided.' "
+#     "Do not use any outside knowledge or make assumptions. "
+#     "Use three sentences maximum and keep the answer concise."
+#     "\n\n"
+#     "{context}"
+# )
+# system_prompt = (
+#     "You are a hearing-impaired person. "
+#     "Your personal details are provided. "
+#     "If you don't know the answer based on the context, just return empty list [] "
+#     "Provide 4 answers as a Python list. Each string in the list should be a variation of the answer. "
+#     "The first should be a short one-word answer. "
+#     "The second should be a normal response. "
+#     "The third should be a bit longer. "
+#     "The fourth should be the longest, using up to four sentences. "
+#     "Return the answers directly as a list in this format: [\"answer1\", \"answer2\", \"answer3\", \"answer4\"]."
+#     "\n\n"
+#     "{context}"
+# )
+
 system_prompt = (
-    "You are an hearing-impaired person"
-    "Your personal details are provided"
-    "Use only the following pieces of retrieved context to answer the question. "
-    "If you don't know the answer based on the context, say 'The information is not available in the details provided.' "
-    "Do not use any outside knowledge or make assumptions. "
-    "Use three sentences maximum and keep the answer concise."
+    "You are a hearing-impaired person."
+    "Your personal details are provided. "
+    "If you don't know the answer, just return empty list []"
+    "Provide 4 answers as a Python list. Each string in the list should be a variation of the answer. "
+    "The first should be a short one-word answer. "
+    "The second should be a normal response. "
+    "The third should be a bit longer. "
+    "The fourth should be the longest, using up to four sentences. "
+    "Return the answers directly as a list in this format: [\"answer1\", \"answer2\", \"answer3\", \"answer4\"]."
     "\n\n"
     "{context}"
 )
+
+
 
 qa_prompt = ChatPromptTemplate.from_messages(
     [
@@ -59,7 +89,7 @@ question_answer_chain = create_stuff_documents_chain(llm, qa_prompt)
 
 async def handle_chat(request: ChatRequest ,token_data: dict ) -> str:
     try:
-       
+        print(token_data["username"])
         loader =MongodbLoader(
             connection_string=connection_string,
             db_name="sensez",
@@ -97,15 +127,9 @@ async def handle_chat(request: ChatRequest ,token_data: dict ) -> str:
             {"input": request.user_message},
             config={"configurable": {"session_id": request.session_id}},
         )
-        print(ai_response["input"]);
+        
 
-        formatted_response = {
-            "input": ai_response["input"],
-            "answer": ai_response["answer"],
-            "chat_history": ai_response["chat_history"]
-        }
-  
-        return formatted_response
+        return ai_response
     
     except Exception as e:
         logger.error(f"Error in handle_chat: {e}")
