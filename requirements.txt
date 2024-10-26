@@ -10,7 +10,6 @@ langchain_core
 langchain_text_splitters
 langchain-chroma
 langchainhub
-langchain-chroma
 pymongo
 pydantic
 pyjwt
