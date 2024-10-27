@@ -9,11 +9,11 @@ from langchain_mongodb.chat_message_histories import MongoDBChatMessageHistory
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
 from server.models.chat import ChatRequest
-from server.utils.mongodb_client import connection_string, db
+from server.utils.mongodb_client import connection_string, get_user_details,custom_mongodb_loader
 from server.utils.logger import logger
 
 # Initialize the llm
-llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0)
+llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
 
 # Initialize text splitter
 text_splitter = RecursiveCharacterTextSplitter(chunk_size = 1000, chunk_overlap = 50)
@@ -87,29 +87,51 @@ qa_prompt = ChatPromptTemplate.from_messages(
 question_answer_chain = create_stuff_documents_chain(llm, qa_prompt)
 
 
-async def handle_chat(request: ChatRequest ,token_data: dict ) -> str:
+async def handle_chat(request: ChatRequest, token_data: dict) -> str:
     try:
-        print(token_data["username"])
-        loader =MongodbLoader(
-            connection_string=connection_string,
-            db_name="sensez",
-            collection_name="senceez_user_collection",
-            filter_criteria={"username": token_data["username"]},
+        # Print the username for debugging
+        logger.info(f"Processing request for user: {token_data['username']}")
+        
+        # Load documents from MongoDB
+        user_docs = custom_mongodb_loader(
+            connection_string,
+            "sensez",
+            "senceez_user_collection",
+            {"username": token_data['username']}
         )
         
-        user_docs = [doc async for doc in loader.alazy_load()]
-    
+        if not user_docs:
+            logger.error("No documents found for the given filter criteria.")
+            return "No documents found."
+
+        logger.info(f"Retrieved {len(user_docs)} documents.")
+        logger.info(f"Documents {user_docs}")
+
+        # Split the documents
         splits = text_splitter.split_documents(user_docs)
+        if not splits:
+            logger.error("No document splits generated from the retrieved documents.")
+            return "No document splits available."
 
-        vector_store = Chroma.from_documents(documents=splits, embedding=OpenAIEmbeddings())
-        retriever = vector_store.as_retriever()
+        logger.info(f"Generated {len(splits)} document splits.")
 
+        # Initialize Chroma vector store
+        try:
+            vector_store = Chroma.from_documents(documents=splits, embedding=OpenAIEmbeddings())
+            retriever = vector_store.as_retriever()
+        except Exception as e:
+            logger.error(f"Error initializing Chroma vector store: {e}")
+            return "Vector store initialization failed."
+
+        # Create the history-aware retriever
         history_aware_retriever = create_history_aware_retriever(
-        llm, retriever, contextualize_q_prompt
+            llm, retriever, contextualize_q_prompt
         )
 
+        # Create the RAG chain
         rag_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)
 
+        # Initialize the conversational RAG chain
         conversational_rag_chain = RunnableWithMessageHistory(
             rag_chain,
             lambda session_id: MongoDBChatMessageHistory(
@@ -123,14 +145,15 @@ async def handle_chat(request: ChatRequest ,token_data: dict ) -> str:
             output_messages_key="answer",
         )
 
+        # Invoke the conversational RAG chain
         ai_response = conversational_rag_chain.invoke(
             {"input": request.user_message},
             config={"configurable": {"session_id": request.session_id}},
         )
-        
 
+        logger.info(f"Generated AI response: {ai_response}")
         return ai_response
-    
+
     except Exception as e:
         logger.error(f"Error in handle_chat: {e}")
         raise e
