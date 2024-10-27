@@ -6,7 +6,7 @@ import certifi
 from dotenv import load_dotenv
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
-from pymongo.server_api import ServerApi
+from langchain.schema import Document
 
 load_dotenv()
 
@@ -16,7 +16,6 @@ connection_string = f"mongodb+srv://badmkavinda:{password}@sensezcluster.esoo75g
 # Create a new client and connect to the server
 client = MongoClient(
     connection_string, 
-    server_api=ServerApi('1'), 
     tlsCAFile=certifi.where(),
     tlsAllowInvalidCertificates=True
 )
@@ -40,3 +39,11 @@ def get_user_details(username):
             return {"error": "User not found"}
     except PyMongoError as e:
         return {"error": str(e)}
+    
+
+def custom_mongodb_loader(connection_string, db_name, collection_name, filter_criteria):
+    client = MongoClient(connection_string)
+    db = client[db_name]
+    collection = db[collection_name]
+    documents = collection.find(filter_criteria)
+    return [Document(page_content=str(doc)) for doc in documents]
