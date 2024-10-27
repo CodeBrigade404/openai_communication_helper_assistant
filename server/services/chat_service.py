@@ -94,10 +94,12 @@ async def handle_chat(request: ChatRequest ,token_data: dict ) -> str:
             connection_string=connection_string,
             db_name="sensez",
             collection_name="senceez_user_collection",
-            filter_criteria={"username": token_data["username"]},
+            filter_criteria={"username": "Manula"},
         )
         
+
         user_docs = [doc async for doc in loader.alazy_load()]
+        print(user_docs)
     
         splits = text_splitter.split_documents(user_docs)
 

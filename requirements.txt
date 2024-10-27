@@ -16,4 +16,4 @@ pyjwt
 motor
 bs4
 jq
-
+certifi
